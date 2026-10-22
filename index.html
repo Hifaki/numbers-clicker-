@@ -1,136 +1,382 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>NUMBERS — 指数加速版</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{font:15px system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 14px;background:#101114;color:#e8e8e8}h1{font-size:18px}h2{font-size:15px;margin:0 0 12px}section{border:1px solid #36383e;border-radius:8px;padding:16px;margin:12px 0}button{background:#292d35;color:#fff;border:1px solid #565b65;border-radius:5px;padding:10px;cursor:pointer}button:disabled{opacity:.4;cursor:default}button:hover:not(:disabled){background:#3a4050}.big{font-size:32px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.muted{color:#aaa;font-size:12px}.line{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 0}.line>div{min-width:0}.line button{flex-shrink:0}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stats div{padding:9px;background:#1b1e23;border-radius:5px}#click{width:100%;font-size:18px;margin-top:12px;padding:16px}.tabs{display:flex;gap:6px;flex-wrap:wrap}.tabs button.active{background:#525b70}#log{min-height:1em}small{color:#aaa}label{display:inline-flex;gap:6px;align-items:center}@media(max-width:480px){.line{align-items:flex-start;flex-direction:column}.line button{width:100%}}html,body,button{touch-action:manipulation}button{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
-html,body{touch-action:pan-x pan-y}button{touch-action:manipulation}button:active:not(:disabled){background:#586174}.milestone{color:#93dfab}.buy-controls{display:flex;gap:5px;flex-wrap:wrap;margin:12px 0}.buy-controls button.active{background:#525b70}.line small{display:block;margin-top:3px}.line{border-bottom:1px solid #282b30;padding-bottom:9px}.big{font-variant-numeric:tabular-nums}.hint{font-size:12px;color:#b9bdc6;line-height:1.6}
-/* タップ領域を安定させ、ダブルタップ拡大・選択を抑止 */
-html{touch-action:pan-y;overscroll-behavior:none;-webkit-text-size-adjust:100%}
-body{touch-action:pan-y;overscroll-behavior-y:contain;-webkit-user-select:none;user-select:none}
-button,nav,.buy-controls{touch-action:manipulation;-webkit-user-select:none;user-select:none}
-button{min-height:44px;position:relative;-webkit-appearance:none;appearance:none}
-#click{min-height:72px;touch-action:none}
-@media(max-width:480px){body{margin:12px auto}.line{gap:7px}.line button{min-height:48px}}
-
-button{touch-action:manipulation}#click{touch-action:none}.line{contain:layout}.stats b{overflow-wrap:anywhere}.buy-controls button{flex:1} .detail{color:#adb7c5;font-size:12px;line-height:1.5} .big{font-size:clamp(23px,7vw,34px)}
-</style></head><body>
-<h1>NUMBERS / 指数加速版</h1><div class="muted">10・100・1,000・10,000の節目を重ね掛けして、指数を増やす。</div>
-<section><div class="muted">数字</div><div class="big" id="points">0</div>
-<div class="stats"><div>毎秒 <b id="pps">0</b></div><div>クリック <b id="clickPower">1</b></div><div>今回獲得 <b id="total">0</b></div><div>転生倍率 <b id="multi">1</b></div></div>
-<button id="click">+1 クリック</button></section>
-<nav class="tabs"><button data-tab="production" class="active">生産</button><button data-tab="upgrades">強化</button><button data-tab="prestige">転生</button><button data-tab="achievements">実績</button><button data-tab="settings">設定</button></nav>
-<section id="panel"></section><div id="log" class="muted" aria-live="polite"></div>
-<script>(()=>{'use strict';
-const KEY='numbers-clicker-v2';
-const generators=[['指',15,1],['機械',120,7],['工場',1400,45],['都市',18000,280],['惑星',300000,1800],['恒星',6500000,12000],['銀河',150000000,85000],['宇宙',5000000000,650000]];
-// 数値は仮数と指数の組。小数指数ではなく整数指数を保持する。
-const Z={m:0,e:0},O={m:1,e:0};
-function N(v){if(v&&typeof v==='object'&&typeof v.m==='number'&&typeof v.e==='number')return norm(v.m,v.e);if(typeof v==='string'){const a=v.match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:e([+-]?\d+))?$/i);if(a)return norm(Number(a[1]),Number(a[2]||0));return Z}return Number.isFinite(v)&&v>0?norm(v,0):Z}
-function norm(m,e){if(!(m>0)||!Number.isFinite(m)||!Number.isFinite(e))return Z;let shift=Math.floor(Math.log10(m));m/=10**shift;e+=shift;if(m>=10){m/=10;e++}if(m<1){m*=10;e--}return {m,e}}
-const logv=x=>x.m===0?-Infinity:Math.log10(x.m)+x.e;
-function pow10(ex){if(!Number.isFinite(ex))return Z;return norm(10**(ex-Math.floor(ex)),Math.floor(ex))}
-function add(a,b){if(!a.m)return b;if(!b.m)return a;if(a.e<b.e)[a,b]=[b,a];if(a.e-b.e>18)return a;return norm(a.m+b.m*10**(b.e-a.e),a.e)}
-function sub(a,b){if(!b.m)return a;if(cmp(a,b)<=0)return Z;if(a.e-b.e>16)return a;return norm(a.m-b.m*10**(b.e-a.e),a.e)}
-const mul=(a,b)=>!a.m||!b.m?Z:norm(a.m*b.m,a.e+b.e);
-const scale=(a,v)=>v>0&&a.m?norm(a.m*v,a.e):Z;
-function cmp(a,b){if(!a.m)return b.m?-1:0;if(!b.m)return 1;if(a.e!==b.e)return a.e>b.e?1:-1;return a.m>b.m?1:a.m<b.m?-1:0}
-const min=(a,b)=>cmp(a,b)<0?a:b;
-const floorSmall=x=>x.e>=14?x:x.e<0?Z:N(Math.floor(x.m*10**x.e));
-function fmt(x){x=N(x);if(!x.m)return '0';if(x.e<3){let v=x.m*10**x.e;return (v>=100?Math.floor(v):Math.floor(v*10)/10).toLocaleString('ja-JP')};const units=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];const group=Math.floor(x.e/3);const val=x.m*10**(x.e%3);if(group<units.length)return val.toFixed(2)+units[group];return x.m.toFixed(3)+'e+'+x.e.toLocaleString('en-US')}
-function compactInt(n){return Number.isFinite(n)?Math.floor(n).toLocaleString('ja-JP'):'∞'}
-const oldDefault=()=>({points:Z,total:Z,allTime:Z,clicks:0,gens:Array(8).fill(0),clickLv:0,prodLv:0,prestige:0,crystals:Z,crystalSpent:Z,permLv:0,achievements:[],last:Date.now()});
-let s=oldDefault();
-try{const v=JSON.parse(localStorage.getItem(KEY));if(v&&typeof v==='object'){
- s={...s,...v};for(const k of ['points','total','allTime','crystals','crystalSpent'])s[k]=N(s[k]);
- s.gens=Array.isArray(s.gens)?Array.from({length:8},(_,i)=>Math.max(0,Math.min(1e9,Math.floor(Number(s.gens[i])||0)))):Array(8).fill(0);
- for(const k of ['clickLv','prodLv','permLv'])s[k]=Math.max(0,Math.min(1e9,Math.floor(Number(s[k])||0)));
- if(!Array.isArray(s.achievements))s.achievements=[];
-}}catch(e){console.warn('セーブ復元エラー',e)}
-let tab='production',purchaseMode=1,upgradeMode='max',permMode='max',refreshPanel=()=>{};
-const $=id=>document.getElementById(id),T=n=>N(n),multPow=(base,count)=>pow10(Math.log10(base)*count);
-// レベルごとの独立したボーナス。10ごと10倍 / 100ごと100倍 / ...
-// 永続強化は10億までの桁節目を扱う。
-function tierBonus(n,maxTier){let exponent=0;for(let k=1,p=10;p<=maxTier;k++,p*=10)exponent+=k*Math.floor(n/p);return pow10(exponent)}
-function milestoneDetail(n,maxTier){let result=[];for(let p=10;p<=maxTier;p*=10)result.push(compactInt(p)+'毎 ×'+compactInt(p));return result.join(' / ')}
-const globalGenBonus=()=>s.gens.reduce((m,n)=>mul(m,mul(multPow(100,Math.floor(n/100)),mul(multPow(1000,Math.floor(n/1000)),multPow(10000,Math.floor(n/10000))))),O);
-const localGenBonus=n=>multPow(10,Math.floor(n/10));
-const crystalAll=()=>add(s.crystals,s.crystalSpent);
-const prestigeBase=()=>add(O,scale(crystalAll(),.1));
-// 永続強化の従来の +25%/Lv を維持し、追加で10〜10億の各節目を乗算。
-const permBonus=()=>mul(add(O,scale(T(s.permLv),.25)),tierBonus(s.permLv,1e9));
-const multiplier=()=>mul(prestigeBase(),permBonus());
-const upgradeBonus=n=>tierBonus(n,1000000000);
-const cp=()=>mul(mul(T(s.clickLv+1),add(O,scale(T(s.prodLv),.1))),mul(mul(upgradeBonus(s.clickLv),upgradeBonus(s.prodLv)),multiplier()));
-const genProduction=i=>mul(scale(T(generators[i][2]),s.gens[i]),localGenBonus(s.gens[i]));
-const pps=()=>mul(s.gens.reduce((sum,_,i)=>add(sum,genProduction(i)),Z),mul(mul(add(O,scale(T(s.prodLv),.25)),upgradeBonus(s.prodLv)),mul(multiplier(),globalGenBonus())));
-// 従来の二次式価格を廃止。10台目ごとの変動と、100/1000/10000台の節目に追加費用。
-function genCostAt(i,n){const g=generators[i];const exponent=Math.log10(g[1])+Math.log10(1.17)*n+Math.log10(1.6)*Math.floor(n/10)+Math.log10(2)*Math.floor(n/100)+Math.log10(3)*Math.floor(n/1000)+Math.log10(5)*Math.floor(n/10000);return pow10(exponent)}
-function clickCostAt(n){return pow10(1+Math.log10(1.65)*n+Math.log10(1.5)*Math.floor(n/10)+Math.log10(2)*Math.floor(n/100))}
-function prodCostAt(n){return pow10(2+Math.log10(2.1)*n+Math.log10(1.5)*Math.floor(n/10)+Math.log10(2)*Math.floor(n/100))}
-// 結晶コスト：永続強化1レベル = 5×(レベル+1) 。大きいレベルでもまとめ買い可能。
-function permBundleCost(q){return q<=0?Z:mul(T(2*s.permLv+q+1),scale(T(q),2.5))}
-// 一括コストの末尾160項を高精度で合計。価格は常に少なくとも1.17倍で
-// 160項より前の寄与は1e-10以下。厳密比較用に安全マージンを追加。
-function geometricBundle(costAt,start,q){if(q<=0)return Z;let result=Z;const from=Math.max(0,q-160);for(let j=from;j<q;j++)result=add(result,costAt(start+j));return scale(result,1+1e-10)}
-const genBundle=(i,q)=>geometricBundle(n=>genCostAt(i,n),s.gens[i],q);
-const upgradeBundle=(type,q)=>geometricBundle(n=>type==='click'?clickCostAt(n):prodCostAt(n),type==='click'?s.clickLv:s.prodLv,q);
-function maxAffordable(costFor,available,cap=1e9){if(cap<1||cmp(costFor(1),available)>0)return 0;if(cap===1)return 1;let lo=1,hi=2;while(hi<cap&&cmp(costFor(hi),available)<=0){lo=hi;hi=Math.min(cap,hi*2)}if(hi===cap&&cmp(costFor(hi),available)<=0)return cap;while(lo+1<hi){const mid=Math.floor((lo+hi)/2);if(cmp(costFor(mid),available)<=0)lo=mid;else hi=mid}return lo}
-// 高コストの最大購入判定は購入時のみ。画面更新では先頭単価のみ計算する。
-const crystalsGain=()=>{const x=logv(s.total);if(x<5)return Z;const g=pow10((x-5)/2);return g.e<14?floorSmall(g):g};
-const save=()=>{s.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(s))}catch(e){msg('保存に失敗しました')}};
-const msg=t=>$('log').textContent=t;
-function award(name){if(!s.achievements.includes(name)){s.achievements.push(name);msg('実績解除：'+name)}}
-function check(){if(cmp(s.allTime,T(100))>=0)award('100獲得');if(cmp(s.allTime,T(1e5))>=0)award('10万獲得');if(cmp(s.allTime,T(1e9))>=0)award('10億獲得');if(s.clicks>=100)award('100クリック');if(s.gens.reduce((a,b)=>a+b,0)>=100)award('設備100台');if(s.prestige)award('初転生');if(cmp(crystalAll(),T(100))>=0)award('結晶100個')}
-function earn(x){if(!x.m)return;s.points=add(s.points,x);s.total=add(s.total,x);s.allTime=add(s.allTime,x);if(s.achievements.length<7)check()}
-function spend(x){if(cmp(s.points,x)<0)return false;s.points=sub(s.points,x);return true}
-function el(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e}
-function row(parent,title,desc,buttonText,fn){const r=el('div',undefined,'line'),lhs=el('div'),head=el('div',title),detail=el('small',desc),btn=el('button',buttonText);lhs.append(head,detail);r.append(lhs,btn);btn.onclick=()=>{if(btn.disabled)return;fn();save();render()};parent.append(r);return {head,detail,btn}}
-function modeBar(parent,modes,current,change){const bar=el('div',undefined,'buy-controls');for(const [name,value] of modes){const b=el('button',name);b.classList.toggle('active',current===value);b.onclick=()=>{change(value);renderPanel()};bar.append(b)}parent.append(bar)}
-function renderPanel(){const p=$('panel');p.replaceChildren();refreshPanel=()=>{};
-if(tab==='production'){
- p.append(el('h2','生産設備'));
- modeBar(p,[['×1',1],['×10',10],['最大','max']],purchaseMode,v=>purchaseMode=v);
- p.append(el('p','各設備10台ごとにその設備×10。さらに各設備100台ごとに全生産×100、1,000台ごとに×1,000、10,000台ごとに×10,000（すべて重複適用）。','hint'));
- const lines=generators.map((g,i)=>row(p,g[0]+' × '+compactInt(s.gens[i]),'','購入',()=>{
-  let q=purchaseMode==='max'?maxAffordable(k=>genBundle(i,k),s.points,1e9-s.gens[i]):Math.min(purchaseMode,maxAffordable(k=>genBundle(i,k),s.points,Math.min(purchaseMode,1e9-s.gens[i])));
-  if(q>0){const price=genBundle(i,q);if(spend(price)){s.gens[i]+=q;msg(g[0]+' を '+compactInt(q)+' 台購入')}}
- }));
- refreshPanel=()=>generators.forEach((g,i)=>{let n=s.gens[i],r=lines[i],price=genCostAt(i,n);r.head.textContent=g[0]+' × '+compactInt(n);
-  r.detail.textContent='基礎生産 '+fmt(genProduction(i))+'/秒 ・ 10台倍率 ×'+fmt(localGenBonus(n))+' ・ 次の10台まで '+(10-n%10)+'台 ・ 次の単価 '+fmt(price);
-  r.btn.textContent='購入 '+(purchaseMode==='max'?'最大':('×'+purchaseMode))+'（'+fmt(price)+'〜）';r.btn.disabled=cmp(s.points,price)<0||n>=1e9;
- });
-}else if(tab==='upgrades'){
- p.append(el('h2','通常強化'));modeBar(p,[['×1',1],['×10',10],['最大','max']],upgradeMode,v=>upgradeMode=v);
- p.append(el('p','強化レベル10ごと×10、100ごと×100、1,000ごと×1,000……10億まで重複乗算。クリック強化はクリック、全体強化は設備生産とクリックに適用。','hint'));
- const lines=[['クリック強化','clickLv',clickCostAt],['全体強化','prodLv',prodCostAt]].map(([name,key,costAt])=>row(p,name,'','購入',()=>{
-  const bundle=k=>upgradeBundle(key==='clickLv'?'click':'prod',k),q=upgradeMode==='max'?maxAffordable(bundle,s.points,1e9-s[key]):maxAffordable(bundle,s.points,Math.min(upgradeMode,1e9-s[key]));
-  if(q>0&&spend(bundle(q))){s[key]+=q;msg(name+' +'+compactInt(q)+' Lv')}}));
- refreshPanel=()=>lines.forEach((r,i)=>{const key=i===0?'clickLv':'prodLv',type=i===0?'click':'prod',costAt=i===0?clickCostAt:prodCostAt,n=s[key],c=costAt(n);r.head.textContent=(i===0?'クリック強化':'全体強化')+' Lv.'+compactInt(n);r.detail.textContent='節目倍率 ×'+fmt(upgradeBonus(n))+' / 次の10区切りまで '+(10-n%10)+' Lv / 次の費用 '+fmt(c);r.btn.textContent='購入 '+(upgradeMode==='max'?'最大':'×'+upgradeMode);r.btn.disabled=cmp(s.points,c)<0||n>=1e9});
-}else if(tab==='prestige'){
- p.append(el('h2','転生'));const display=el('p'),gain=el('p'),owned=el('p');p.append(display,gain,owned);
- p.append(el('p','累計獲得結晶1個につき+10%。永続強化はLvあたり+25%に加えて、10・100・1,000……10億レベルの節目で倍率が重複して増加。','hint'));
- const rebirth=row(p,'転生する','数字・設備・通常強化をリセット。結晶と永続強化は残る。','転生',()=>{const g=crystalsGain();if(!g.m||!confirm('転生しますか？通常進行はリセットされます。'))return;s.prestige++;s.crystals=add(s.crystals,g);s.points=Z;s.total=Z;s.gens=Array(8).fill(0);s.clickLv=0;s.prodLv=0;check()});
- modeBar(p,[['×1',1],['×10',10],['最大','max']],permMode,v=>permMode=v);
- const perm=row(p,'永続強化 Lv.'+compactInt(s.permLv),'','結晶で購入',()=>{
-  const q=permMode==='max'?maxAffordable(permBundleCost,s.crystals,1e9-s.permLv):maxAffordable(permBundleCost,s.crystals,Math.min(permMode,1e9-s.permLv));if(!q)return;
-  const cost=permBundleCost(q);if(cmp(s.crystals,cost)<0)return;s.crystals=sub(s.crystals,cost);s.crystalSpent=add(s.crystalSpent,cost);s.permLv+=q;msg('永続強化 +'+compactInt(q)+' Lv');
- });
- refreshPanel=()=>{display.textContent='今回の累計獲得 '+fmt(s.total);gain.textContent='転生で獲得 '+fmt(crystalsGain())+' 結晶';owned.textContent='所持結晶 '+fmt(s.crystals)+' / 累計 '+fmt(crystalAll());rebirth.btn.disabled=!crystalsGain().m;rebirth.btn.textContent='転生（+'+fmt(crystalsGain())+'）';const c=permBundleCost(1);perm.head.textContent='永続強化 Lv.'+compactInt(s.permLv);perm.detail.textContent='現在の節目倍率 ×'+fmt(tierBonus(s.permLv,1e9))+' / 次の単価 結晶'+fmt(c);perm.btn.textContent='購入 '+(permMode==='max'?'最大':'×'+permMode);perm.btn.disabled=cmp(s.crystals,c)<0||s.permLv>=1e9};
-}else if(tab==='achievements'){
- p.append(el('h2','実績 '+s.achievements.length+'/7'));for(const a of ['100獲得','10万獲得','10億獲得','100クリック','設備100台','初転生','結晶100個'])p.append(el('div',(s.achievements.includes(a)?'✓ ':'□ ')+a));
-}else{
- p.append(el('h2','設定'));p.append(el('p','自動セーブ約5秒 / オフライン生産最大8時間 / セーブキーは旧版と共通'));
- row(p,'セーブデータをコピー','JSONとしてコピーして別途保存できます','コピー',()=>{const data=JSON.stringify(s);if(navigator.clipboard?.writeText)navigator.clipboard.writeText(data).then(()=>msg('コピーしました')).catch(()=>msg('コピーできませんでした'));else prompt('データをコピーしてください',data)});
- row(p,'セーブデータを読み込む','設定前に必ずバックアップしてください','読み込む',()=>{const v=prompt('以前コピーしたJSONを貼り付けてください');if(!v)return;try{const data=JSON.parse(v);if(!data||!Array.isArray(data.gens))throw Error('形式');s={...oldDefault(),...data};for(const k of ['points','total','allTime','crystals','crystalSpent'])s[k]=N(s[k]);save();render()}catch(e){msg('読み込み形式が正しくありません')}});
- row(p,'手動保存','進行状況を保存','保存',()=>{save();msg('保存しました')});
- row(p,'全リセット','進行状況を削除します','削除',()=>{if(confirm('本当に全削除しますか？')){s=oldDefault();save();msg('リセットしました')}});
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#101318">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>NUMBERS : CONWAY / 数の地平</title>
+<style>
+:root{color-scheme:dark;--bg:#101318;--card:#1a2029;--card2:#222b37;--line:#344151;--fg:#f1f4f9;--muted:#a8b3c3;--accent:#99e6ca;--accent2:#92bfff;--warn:#f7cf81}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;background:var(--bg);color:var(--fg);touch-action:pan-y;overscroll-behavior:none;-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;padding:0 0 calc(28px + env(safe-area-inset-bottom));touch-action:pan-y;overscroll-behavior-x:none}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none;appearance:none;-webkit-appearance:none}
+button:disabled{opacity:.43;cursor:default}
+button:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+body,header,main,section,div,span,p,strong,h1,h2,h3{ -webkit-user-select:none;user-select:none }
+textarea,input{-webkit-user-select:text;user-select:text}
+.wrap{max-width:780px;margin:auto;padding:0 14px}
+header{position:sticky;top:0;z-index:10;background:#101318ef;border-bottom:1px solid var(--line);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:53px}
+h1{font-size:17px;letter-spacing:.11em;margin:0;font-weight:900}.version{font-weight:500;color:var(--muted);font-size:11px;letter-spacing:0}
+.headbtn{background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12px}
+.stagebar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 0 11px}.stagebar::-webkit-scrollbar{display:none}
+.stagebtn{flex:none;padding:8px 12px;border:1px solid var(--line);background:var(--card);border-radius:9px;font-size:12px;white-space:nowrap;min-height:37px}
+.stagebtn.current{background:#2c4544;border-color:#69c1a5;color:#bbffe8}.stagebtn.locked{opacity:.32}
+main{padding-top:14px!important}.panel{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px;margin-bottom:12px}
+.eyebrow{font-size:11px;letter-spacing:.09em;color:var(--accent);font-weight:800;margin:0 0 7px}
+.big{font-size:clamp(30px,7vw,48px);font-weight:850;letter-spacing:-.035em;line-height:1.17;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.math{font-size:clamp(19px,5.3vw,33px);font-weight:760;color:#cfdefe;line-height:1.38;overflow-wrap:anywhere;word-break:break-word;font-variant-numeric:tabular-nums;max-height:140px;overflow:auto}
+.small{font-size:12px;color:var(--muted);line-height:1.65}.muted{color:var(--muted)}.space{height:8px}
+.statrow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.rate{color:var(--accent);font-weight:760;font-variant-numeric:tabular-nums}
+.click{width:100%;margin:15px 0 3px;padding:19px 12px;border:1px solid #6ec0a7;border-radius:11px;background:#26534b;color:#d5fff2;font-size:20px;font-weight:850;min-height:66px;touch-action:none}
+.click:active{background:#337464;transform:scale(.995)}
+.progress{margin:13px 0 6px;background:#11171f;border-radius:100px;height:8px;overflow:hidden}.progress>.fill{height:100%;background:linear-gradient(90deg,#6fb6ac,#a4e9ca);width:0%;transition:width .2s linear}
+.goal{font-size:12px;color:var(--muted);line-height:1.6}.row{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.btn{background:var(--card2);border:1px solid #536579;border-radius:9px;padding:10px 11px;min-height:43px;font-size:13px;font-weight:720;line-height:1.25}
+.btn:active:not(:disabled){background:#3c5268}.primary{background:#2f6558;border-color:#85d4b9;color:#ddfff2}.primary:active:not(:disabled){background:#327a68}
+.wide{width:100%}.btnrow{display:flex;gap:7px;flex-wrap:wrap}.btnrow>*{flex:1}
+.selects{display:flex;gap:6px}.selects .btn{padding:9px 11px;min-width:60px}.selects .on{border-color:#8be9ce;background:#284b45;color:#cbffef}
+.sectionTitle{font-size:15px;font-weight:830;margin:0 0 11px}.shoprow{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:11px 0;border-top:1px solid var(--line)}
+.shoprow:first-of-type{border-top:0}.shopinfo{min-width:0;flex:1}.shopname{font-size:13px;font-weight:820}.shopdesc{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5;overflow-wrap:anywhere}
+.buy{width:133px;min-height:53px;padding:8px 5px;flex:none;font-size:12px}.buy .price{font-size:11px;color:#c6dfd6;margin-top:4px;font-weight:540;overflow-wrap:anywhere}
+.unlock{border:1px solid #a1a15c;background:#363521;color:#ffe9a7}.unlock:disabled{border-color:var(--line);background:var(--card2)}
+.mini{font-size:11px}.tag{display:inline-block;background:#303c48;border:1px solid #455564;padding:3px 7px;border-radius:6px;font-size:11px;color:#c6d4e1}
+#events{font-size:11px;color:var(--muted);margin:0 0 14px;min-height:16px}#events.good{color:var(--accent)}
+footer{padding:12px 0 30px;color:var(--muted);font-size:11px;line-height:1.8}
+.dialogBack{position:fixed;inset:0;z-index:30;background:#050b12d9;display:flex;align-items:center;justify-content:center;padding:18px}
+.dialog{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;max-width:640px;width:100%;max-height:85vh;overflow:auto}
+.dialog h2{font-size:18px;margin:0 0 10px}.dialog textarea{width:100%;min-height:150px;resize:vertical;background:#0d141d;color:var(--fg);font-family:monospace;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:10px}
+[hidden]{display:none!important}
+@media(min-width:600px){.panel{padding:18px}.buy{width:175px}.shopname{font-size:15px}.shopdesc{font-size:12px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="top"><h1>NUMBERS <span class="version">/ CONWAY v1.1</span></h1><button class="headbtn" id="menuBtn" type="button">セーブ / 設定</button></div>
+  <nav class="stagebar" id="stagebar" aria-label="成長階層"></nav>
+</div></header>
+<main class="wrap">
+  <section class="panel" aria-live="off">
+    <div class="eyebrow" id="phaseName">第一階層</div>
+    <div class="small">現在の資源</div><div class="big" id="money">0</div>
+    <div class="statrow"><span class="small" id="resourceName">数量</span><span class="rate" id="rate">+0 / 秒</span></div>
+    <button type="button" class="click" id="clickBtn">+1 タップ</button>
+    <div class="small" id="tapInfo">この階層の生産が飽和したら、次の演算階層を目指そう</div>
+  </section>
+  <section class="panel">
+    <div class="eyebrow">到達した記法</div><div class="math" id="notation">10⁰</div>
+    <div class="small" id="notationDetail">ゲーム中の達成記号です</div>
+    <div class="progress"><div class="fill" id="progressFill"></div></div>
+    <div class="goal" id="goal"></div>
+    <div class="space"></div><button class="btn unlock wide" id="ascendBtn" type="button" hidden></button><button class="btn" style="margin-top:9px;width:100%" type="button" id="notationCopyBtn">この記法をコピー</button>
+  </section>
+  <section class="panel" id="specialSection" hidden>
+    <div class="sectionTitle" id="specialTitle">特殊演算</div>
+    <div class="small" id="specialInfo"></div><div class="space"></div>
+    <div class="btnrow" id="specialButtons"></div>
+  </section>
+  <section class="panel">
+    <div class="row"><h2 class="sectionTitle" style="margin:0">生産設備</h2><div class="selects" id="modes"><button type="button" class="btn" data-mode="1">×1</button><button type="button" class="btn" data-mode="10">×10</button><button type="button" class="btn" data-mode="max">MAX</button></div></div>
+    <div class="small" style="margin:8px 0 4px">各設備：10台ごと×10、100台ごと×100、1,000台ごと×1,000（同時に乗算）</div>
+    <div id="shop"></div>
+  </section>
+  <section class="panel">
+    <h2 class="sectionTitle">強化</h2><div class="small">10Lvごと×10、100Lvごと×100。MAX購入に対応。演算負荷により、超高出力は緩やかに圧縮される。</div>
+    <div id="upgrades"></div>
+  </section>
+  <section class="panel">
+    <div class="row" style="gap:10px"><div><div class="sectionTitle" style="margin:0 0 5px">自動制御</div><div class="small">解放済みの下位階層を自動購入</div></div><button type="button" id="autoBtn" class="btn">OFF</button></div>
+    <div class="small" style="margin-top:8px" id="stats">タップ 0回</div>
+  </section>
+  <p id="events" role="status" aria-live="polite"></p>
+  <footer>この作品は数の記法を解放するゲームです。資源の大きさと、表示している巨大数の値は別物です。巨大数は正しい数学的記法として組み立て、実際の桁を展開せず記号のまま管理しています。<br>ゲームデータはこのサイトの端末内に自動保存。Safariとホーム画面版では保存領域が分かれる場合があります。</footer>
+</main>
+<div class="dialogBack" id="dialogBack" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+  <h2 id="dialogTitle">セーブ / 設定</h2>
+  <p class="small">この版は新規ゲームです。旧NUMBERSのセーブを上書きしません。定期自動セーブ＋最大8時間のオフライン生産に対応。</p>
+  <div class="btnrow"><button class="btn" type="button" id="saveBtn">今すぐ保存</button><button class="btn" type="button" id="copyBtn">セーブをコピー</button><button class="btn" type="button" id="downloadBtn">ファイル保存</button></div>
+  <p class="small">別端末へ移すときはセーブ文字列をコピーし、下の欄に貼り付けて読み込み。</p>
+  <textarea id="saveArea" placeholder="ここにセーブ文字列を貼り付け"></textarea>
+  <div class="btnrow" style="margin-top:10px"><button class="btn primary" type="button" id="loadBtn">貼り付けたデータを読み込む</button><button class="btn" type="button" id="resetBtn">最初からやり直す</button><button class="btn" type="button" id="closeBtn">閉じる</button></div>
+  <p class="small" id="dialogStatus"></p>
+</div></div>
+<script>
+(()=>{'use strict';
+const KEY='numbers_conway_save';
+const ZERO=-1e90;
+const PHASES=[
+ {name:'数',resource:'数量',tag:'加算と乗算',goal:9,units:['セル','演算器','増幅炉']},
+ {name:'指数',resource:'指数片',tag:'指数の指数',goal:13,units:['指数抽出器','対数炉','冪反応器']},
+ {name:'塔',resource:'積層片',tag:'反復累乗',goal:18,units:['積層機','反復器','超反復炉']},
+ {name:'矢印',resource:'矢印片',tag:'超演算の階数',goal:23,units:['階数炉','演算塔','超矢印機']},
+ {name:'鎖',resource:'連鎖片',tag:'コンウェイ記法',goal:0,units:['鎖紡機','再帰炉','連鎖増幅器']}
+];
+const UNIT_BASE=[12,190,4200],UNIT_RATE=[.25,9,280],UNIT_GROW=[1.36,1.42,1.50];
+const log10=Math.log10;
+function logAdd(a,b){if(a<=ZERO+1)return b;if(b<=ZERO+1)return a;const m=Math.max(a,b),d=Math.abs(a-b);return m+log10(1+Math.pow(10,-d));}
+function logSub(a,b){if(b<=ZERO+1)return a;if(a<=b+1e-12)return ZERO;const d=b-a;if(d < -16)return a;return a+log10(Math.max(1e-15,1-Math.pow(10,d)));}
+function has(a,b){return a>=b-1e-10;}
+function finite(v,def=0){return Number.isFinite(v)?v:def;}
+function newTier(){return {money:ZERO,peak:ZERO,owned:[0,0,0],up:[0,0]};}
+function fresh(){return {v:1,unlocked:0,active:0,mode:'max',auto:false,tiers:Array.from({length:5},newTier),tower:3,arrows:3,chainLen:4,tail:3,ink:0,weaves:0,clearAt:0,clicks:0,seconds:0,last:Date.now()};}
+let s=fresh(),dirty=true,lastSave=Date.now(),lastFrame=performance.now(),lastPaint=0,lastControls=0,lastAuto=0,eventTimer=0,lastVisibilityWall=Date.now();
+const $=id=>document.getElementById(id);
+const gui={phase:$('phaseName'),money:$('money'),rate:$('rate'),tap:$('clickBtn'),tapInfo:$('tapInfo'),notation:$('notation'),notationDetail:$('notationDetail'),goal:$('goal'),fill:$('progressFill'),ascend:$('ascendBtn'),special:$('specialSection'),specialTitle:$('specialTitle'),specialInfo:$('specialInfo'),specialButtons:$('specialButtons'),shop:$('shop'),upgrades:$('upgrades'),stats:$('stats'),resource:$('resourceName')};
+function safeLog(x){return x<=0?ZERO:log10(x);}
+function formatLog(l){
+ if(!Number.isFinite(l))return '—';if(l<=ZERO+1)return '0';
+ if(l<0)return Math.pow(10,l).toFixed(2);
+ if(l<5){const n=Math.pow(10,l);return n.toLocaleString('en-US',{maximumFractionDigits:n<10?2:n<100?1:0});}
+ if(l<15){const p=Math.floor(l/3)*3;const suf={3:'K',6:'M',9:'B',12:'T'}[p]||'';if(p>=3)return (Math.pow(10,l-p)).toFixed(2)+suf;return Math.pow(10,l).toLocaleString('en-US',{maximumFractionDigits:0});}
+ const e=Math.floor(l),m=Math.pow(10,l-e);if(e<1e8)return m.toFixed(2)+'e+'+e.toLocaleString('en-US');
+ return m.toFixed(2)+'e+('+e.toExponential(3)+')';
 }
-refreshPanel()}
-function renderNumbers(){const vals=[['points',fmt(s.points)],['pps',fmt(pps())],['clickPower',fmt(cp())],['total',fmt(s.total)],['multi',fmt(multiplier())+'倍'],['click','+'+fmt(cp())+' クリック']];for(const [id,value] of vals){const e=$(id);if(e.textContent!==value)e.textContent=value}}
-function render(){renderNumbers();renderPanel()}
-$('click').addEventListener('click',()=>{s.clicks++;earn(cp());renderNumbers()});
-for(const b of document.querySelectorAll('[data-tab]'))b.addEventListener('click',()=>{tab=b.dataset.tab;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));render()});
-for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,e=>e.preventDefault(),{passive:false});
-document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
-const offline=Math.min(Math.max(0,(Date.now()-(Number(s.last)||Date.now()))/1000),28800);if(offline>10){const amount=scale(pps(),offline);earn(amount);msg('離席中の獲得 '+fmt(amount))}
-render();let previous=performance.now(),numTime=0,panelTime=0;
-function frame(now){const dt=Math.min(Math.max((now-previous)/1000,0),2);previous=now;if(!document.hidden){earn(scale(pps(),dt));numTime+=dt;panelTime+=dt;if(numTime>=1/30){renderNumbers();numTime=0}if(panelTime>=.4){refreshPanel();panelTime=0}}requestAnimationFrame(frame)}requestAnimationFrame(frame);
-setInterval(save,5000);document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});window.addEventListener('pagehide',save);
+function formatCount(n){return n.toLocaleString('en-US');}
+function rateBonus(k){
+ const t=s.tiers[k],u=t.up[0];let b=u*log10(4.25)+Math.floor(u/10)+Math.floor(u/100)*2;
+ if(k>0){let peak=s.tiers[k-1].peak;b+=Math.max(0,Math.min(5,(peak-(PHASES[k-1].goal-3))*.16));}
+ if(k===2)b+=(s.tower-3)*1.8;
+ if(k===3)b+=(s.arrows-3)*2.2;
+ if(k===4)b+=(s.chainLen-4)*3.2+(s.tail-3)*1.25+s.weaves*.2;
+ return b;
+}
+function countBonus(n){return Math.floor(n/10)+2*Math.floor(n/100)+3*Math.floor(n/1000);}
+function unitPrice(k,j,n){return log10(UNIT_BASE[j])+j*.1+k*.18+n*log10(UNIT_GROW[j])+Math.floor(n/10)*log10(1.45)+Math.floor(n/100)*log10(8)+Math.floor(n/1000)*log10(60);}
+function upPrice(k,j,n){return log10(j===0?44:24)+k*.21+n*log10(j===0?5.5:4.8)+Math.floor(n/10)*log10(3)+Math.floor(n/100)*2;}
+function prodRate(k,j){const t=s.tiers[k],n=t.owned[j];if(n===0)return ZERO;return log10(n*UNIT_RATE[j])+countBonus(n)+rateBonus(k);}
+function compressGain(k,x){
+ if(x<=ZERO+1)return x;
+ const limit=6+k*4;
+ // 各階層の計算容量が大きな演算を圧縮する。設備の節目倍率自体は有効。
+ return x<=limit?x:limit+6*log10(1+x-limit);
+}
+function tierRate(k){let sum=ZERO;for(let j=0;j<3;j++)sum=logAdd(sum,prodRate(k,j));return compressGain(k,sum);}
+function tapLog(k){const t=s.tiers[k];return compressGain(k,rateBonus(k)+t.up[1]*log10(3.7)+Math.floor(t.up[1]/10)*.8);}
+function sumCosts(costFn,start,q){
+ if(q<=0)return ZERO;
+ // 個々の設備価格は少なくとも等比率1.36倍。最後の128件だけでも
+ // 相対誤差が約10^-17以下となり、さらに古い購入分は無視できる。
+ const last=start+q-1,stop=Math.max(start,last-127);let sum=ZERO;
+ for(let n=last;n>=stop;n--)sum=logAdd(sum,costFn(n));
+ return sum;
+}
+function costFor(k,kind,j,q){const t=s.tiers[k],n=(kind==='unit'?t.owned:t.up)[j];const fn=kind==='unit'?(x=>unitPrice(k,j,x)):(x=>upPrice(k,j,x));return sumCosts(fn,n,q);}
+function affordable(k,kind,j,q){return has(s.tiers[k].money,costFor(k,kind,j,q));}
+function maxQty(k,kind,j){let hi=1,limit=1000000;const money=s.tiers[k].money;if(money<=ZERO+1)return 0;
+ if(!affordable(k,kind,j,1))return 0;
+ while(hi<limit && affordable(k,kind,j,hi)){hi=Math.min(limit,hi*2);if(hi===limit)break;}
+ if(hi===limit&&affordable(k,kind,j,hi))return hi;
+ let lo=Math.floor(hi/2);while(lo+1<hi){let mid=Math.floor((lo+hi)/2);if(affordable(k,kind,j,mid))lo=mid;else hi=mid;}
+ return lo;
+}
+function buy(k,kind,j,qOrMode){const t=s.tiers[k];const q=qOrMode==='max'?maxQty(k,kind,j):qOrMode;
+ if(!q||!Number.isSafeInteger(q)||q<1)return false;
+ const price=costFor(k,kind,j,q);if(!has(t.money,price))return false;
+ t.money=logSub(t.money,price);(kind==='unit'?t.owned:t.up)[j]+=q;dirty=true;return true;
+}
+function clickTap(){const t=s.tiers[s.active];t.money=logAdd(t.money,tapLog(s.active));t.peak=Math.max(t.peak,t.money);s.clicks++;dirty=true;}
+function tick(dt){dt=Math.max(0,Math.min(28800,dt));if(!dt)return;
+ for(let k=0;k<=s.unlocked;k++){
+  const r=tierRate(k);if(r>ZERO+1){const t=s.tiers[k];t.money=logAdd(t.money,r+log10(dt));t.peak=Math.max(t.peak,t.money);}
+ }
+ s.seconds+=dt;dirty=true;
+}
+function goalReady(k){const t=s.tiers[k];return t.money>=PHASES[k].goal && (k!==2||s.tower>=5) && (k!==3||s.arrows>=5);}
+function goalInfo(k){
+ if(k===4){if(!s.clearAt)return '最終目標：5項チェーンを作り、末尾を10まで伸ばす';return '踏破済み：この先はチェーンを好きなだけ伸ばそう';}
+ let str='次の記法：'+PHASES[k+1].name+' ｜ 必要資源 1e+'+PHASES[k].goal;
+ if(k===2)str+=' ＋ 塔の高さ5以上';if(k===3)str+=' ＋ 矢印5本以上';return str;
+}
+function notation(k){
+ if(k===0){return '10^'+Math.max(0,Math.floor(s.tiers[0].peak<=ZERO+1?0:s.tiers[0].peak));}
+ if(k===1){const p=Math.max(2,Math.floor(Math.max(0,s.tiers[1].peak)/3));return '10^(10^'+p+')';}
+ if(k===2)return '10↑↑'+s.tower;
+ if(k===3)return '3↑^('+s.arrows+')3';
+ const length=s.chainLen;if(length<=9)return Array.from({length:length-1},()=> '3').concat(String(s.tail)).join('→');
+ return '3→3→…→3→'+s.tail+'（全'+length+'項・省略表示）';
+}
+function completeNotation(){
+ if(s.active!==4)return notation(s.active);
+ if(s.chainLen>10000)return notation(s.active);
+ return Array.from({length:s.chainLen-1},()=> '3').concat(String(s.tail)).join('→');
+}
+function notationDetail(k){
+ if(k===0)return '通常の10の累乗。最高到達規模（概数）';
+ if(k===1)return '二重指数の解放記号。指数片との等号は意味しません';
+ if(k===2)return '指数塔：10↑↑h は 10 を h 個積み重ねた累乗塔';
+ if(k===3)return '3↑^(n)3 は矢印 n 本のクヌース表記';
+ return 'コンウェイのチェーン。全 '+s.chainLen+' 項（末尾以外はすべて3）。10項以上は短縮表示';
+}
+function notification(msg){const el=$('events');el.textContent=msg;el.className='good';clearTimeout(eventTimer);eventTimer=setTimeout(()=>{el.textContent='';el.className='';},4500);}
+function createNav(){
+ const box=$('stagebar');box.replaceChildren();
+ for(let k=0;k<5;k++){
+  const b=document.createElement('button');b.type='button';b.className='stagebtn';b.dataset.stage=k;
+  b.textContent=['Ⅰ 数','Ⅱ 指数','Ⅲ 塔','Ⅳ 矢印','Ⅴ 連鎖'][k]+(k>s.unlocked?' 🔒':'');
+  b.disabled=k>s.unlocked;b.classList.toggle('current',k===s.active);b.classList.toggle('locked',k>s.unlocked);
+  box.appendChild(b);
+ }
+ // 横幅の狭いiPhoneでも、現在の階層を見える位置に置く。
+ const selected=box.querySelector('.current');
+ if(selected)box.scrollLeft=Math.max(0,selected.offsetLeft-box.offsetLeft-(box.clientWidth-selected.clientWidth)/2);
+}
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
+function renderShops(){gui.shop.replaceChildren();gui.upgrades.replaceChildren();for(let j=0;j<3;j++){
+ const row=el('div','shoprow'),info=el('div','shopinfo'),name=el('div','shopname',PHASES[s.active].units[j]),desc=el('div','shopdesc');desc.id='unitDesc'+j;info.append(name,desc);
+ const b=el('button','btn buy');b.type='button';b.dataset.kind='unit';b.dataset.item=j;b.innerHTML='<span class="action"></span><div class="price"></div>';row.append(info,b);gui.shop.appendChild(row);
+ }
+ for(let j=0;j<2;j++){
+ const row=el('div','shoprow'),info=el('div','shopinfo'),name=el('div','shopname',j===0?'全生産倍率':'手動クリック倍率'),desc=el('div','shopdesc');desc.id='upDesc'+j;info.append(name,desc);
+ const b=el('button','btn buy');b.type='button';b.dataset.kind='up';b.dataset.item=j;b.innerHTML='<span class="action"></span><div class="price"></div>';row.append(info,b);gui.upgrades.appendChild(row);
+ }
+}
+function actionBtn(text,act){const b=el('button','btn primary',text);b.type='button';b.dataset.special=act;return b;}
+function renderSpecial(){const k=s.active;gui.special.hidden=k===0;gui.specialButtons.replaceChildren();if(k===0)return;
+ const title=['','指数圧縮','塔の構築','矢印の拡張','チェーン編集'][k];gui.specialTitle.textContent=title;
+ if(k===1){gui.specialInfo.textContent='前階層の数量が1e+8以上なら、それを圧縮して指数片に変換。設備・到達記録は残る。自動購入をOFFにすると貯めやすい。';gui.specialButtons.appendChild(actionBtn('数量 → 指数片','condense'));}
+ else if(k===2){gui.specialInfo.textContent='積層片を消費して塔を1段追加。1段ごとにこの階層の生産×約63。';gui.specialButtons.appendChild(actionBtn('塔を1段積む','tower'));}
+ else if(k===3){gui.specialInfo.textContent='矢印片を消費して矢印の本数を増やす。1本につき生産×約158。';gui.specialButtons.appendChild(actionBtn('矢印を1本増やす','arrow'));}
+ else {gui.specialInfo.textContent='連鎖片を「鎖片」に変換（現在の連鎖片は0に戻る）。鎖片でチェーン末尾と長さを伸ばす。5項・末尾10で一度クリア。';gui.specialButtons.append(actionBtn('鎖片を織る','weave'),actionBtn('末尾 +1','tail'),actionBtn('チェーン +1項','link'));}
+}
+function syncModes(){for(const b of document.querySelectorAll('[data-mode]'))b.classList.toggle('on',b.dataset.mode===s.mode);}
+function fullRender(){createNav();renderShops();renderSpecial();syncModes();gui.phase.textContent=['第Ⅰ階層 / 数','第Ⅱ階層 / 指数','第Ⅲ階層 / 塔','第Ⅳ階層 / 矢印','第Ⅴ階層 / 連鎖'][s.active];gui.resource.textContent=PHASES[s.active].resource;gui.ascend.hidden=s.active===4;paint(true);}
+function paint(force=false){const k=s.active,t=s.tiers[k],now=performance.now();
+ if(!force&&now-lastPaint<33)return;lastPaint=now;
+ gui.money.textContent=formatLog(t.money);const r=tierRate(k);gui.rate.textContent='+'+formatLog(r)+' / 秒';
+ gui.tap.textContent='+'+formatLog(tapLog(k))+' タップ';gui.notation.textContent=notation(k);gui.notationDetail.textContent=notationDetail(k);
+ let pct=0;if(k===4){pct=Math.min(100,100*(Math.min(1,(s.chainLen-4))*.35+Math.min(1,(s.tail-3)/7)*.65));}
+ else pct=Math.min(100,Math.max(0,100*(t.money<=ZERO+1?0:t.money)/PHASES[k].goal));
+ gui.fill.style.width=pct+'%';gui.goal.textContent=goalInfo(k);
+ if(k<4){gui.ascend.textContent=goalReady(k)?'次の階層を解放：'+PHASES[k+1].name:'未達成：'+PHASES[k+1].name+'を解放する';gui.ascend.disabled=!goalReady(k);gui.ascend.hidden=k<s.unlocked;}
+ if(now-lastControls<170&&!force)return;lastControls=now;
+ for(let j=0;j<3;j++){
+  const b=gui.shop.querySelector('[data-item="'+j+'"]'),q=s.mode==='max'?maxQty(k,'unit',j):Number(s.mode),can=q>0&&affordable(k,'unit',j,q),price=can?costFor(k,'unit',j,q):costFor(k,'unit',j,Math.max(1,q));
+  b.disabled=!can;b.querySelector('.action').textContent='購入 '+(s.mode==='max'?('×'+formatCount(q)):'×'+q);b.querySelector('.price').textContent=formatLog(price);
+  const n=t.owned[j],next=(Math.floor(n/10)+1)*10;const val=prodRate(k,j);
+  $('unitDesc'+j).textContent='所有 '+formatCount(n)+' ｜ 理論+'+formatLog(val)+'/秒 ｜ 次の×10：'+formatCount(next)+'台';
+ }
+ for(let j=0;j<2;j++){
+  const b=gui.upgrades.querySelector('[data-item="'+j+'"]'),q=s.mode==='max'?maxQty(k,'up',j):Number(s.mode),can=q>0&&affordable(k,'up',j,q),price=can?costFor(k,'up',j,q):costFor(k,'up',j,Math.max(1,q));
+  b.disabled=!can;b.querySelector('.action').textContent='強化 '+(s.mode==='max'?('×'+formatCount(q)):'×'+q);b.querySelector('.price').textContent=formatLog(price);
+  $('upDesc'+j).textContent='Lv '+formatCount(t.up[j])+' ｜ 10Lv・100Lvで追加倍率';
+ }
+ if(k===1){const b=gui.specialButtons.querySelector('[data-special="condense"]');if(b){b.disabled=s.tiers[0].money<8;b.textContent='圧縮する（獲得 '+formatLog(s.tiers[0].money>=8?Math.max(0,(s.tiers[0].money-8)/2):ZERO)+' 指数片）';}}
+ if(k===2){const cost=5+3*(s.tower-3),b=gui.specialButtons.querySelector('[data-special="tower"]');b.disabled=!has(t.money,cost);b.textContent='塔 '+s.tower+' → '+(s.tower+1)+' ｜ 1e+'+cost;}
+ if(k===3){const cost=5+4*(s.arrows-3),b=gui.specialButtons.querySelector('[data-special="arrow"]');b.disabled=!has(t.money,cost);b.textContent='矢印 '+s.arrows+' → '+(s.arrows+1)+' ｜ 1e+'+cost;}
+ if(k===4){const cost=8+1.75*s.weaves, b=gui.specialButtons.querySelector('[data-special="weave"]');b.disabled=!has(t.money,cost);b.textContent='鎖片を織る ｜ 必要 '+formatLog(cost)+' ('+formatCount(s.ink)+'片所持)';
+  const tailCost=1+Math.floor((s.tail-3)/3),linkCost=3+2*(s.chainLen-4);
+  const x=gui.specialButtons.querySelector('[data-special="tail"]'),y=gui.specialButtons.querySelector('[data-special="link"]');
+  x.disabled=s.ink<tailCost;x.textContent='末尾 '+s.tail+' → '+(s.tail+1)+' ｜ '+tailCost+'片';
+  y.disabled=s.ink<linkCost;y.textContent='長さ '+s.chainLen+' → '+(s.chainLen+1)+' ｜ '+linkCost+'片';
+ }
+ $('autoBtn').textContent=s.auto?'ON':'OFF';$('autoBtn').classList.toggle('primary',s.auto);
+ gui.stats.textContent='タップ '+formatCount(s.clicks)+' 回 ｜ プレイ '+Math.floor(s.seconds/60)+' 分 ｜ 解放 '+(s.unlocked+1)+'/5 階層'+(s.clearAt?' ｜ ★ 踏破':'');
+}
+function unlock(){const k=s.active;if(k>=4||k!==s.unlocked||!goalReady(k))return;
+ s.unlocked++;s.active=s.unlocked;s.auto=true;dirty=true;fullRender();notification('新たな演算階層「'+PHASES[s.active].name+'」が解放された！下位階層の自動購入をONにしました。');
+}
+function special(which){let t=s.tiers[s.active];if(which==='condense'){
+  const prev=s.tiers[0];if(prev.money<8)return;const gain=Math.max(0,(prev.money-8)/2);t.money=logAdd(t.money,gain);t.peak=Math.max(t.peak,t.money);prev.money=ZERO;notification('数量を指数片へ圧縮した');
+ }else if(which==='tower'){
+  const cost=5+3*(s.tower-2);if(!has(t.money,cost))return;t.money=logSub(t.money,cost);s.tower++;notification('指数塔が '+s.tower+' 段になった');
+ }else if(which==='arrow'){
+  const cost=5+4*(s.arrows-2);if(!has(t.money,cost))return;t.money=logSub(t.money,cost);s.arrows++;notification('矢印が '+s.arrows+' 本になった');
+ }else if(which==='weave'){
+  const cost=8+1.75*s.weaves;if(!has(t.money,cost))return;
+  const extra=Math.floor(Math.max(0,t.money-cost)/4),gain=Math.min(100000,1+extra);s.ink+=gain;s.weaves++;t.money=ZERO;notification(gain+' 鎖片を獲得した');
+ }else if(which==='tail'){
+  const cost=1+Math.floor((s.tail-3)/3);if(s.ink<cost||s.tail>=1000000000)return;s.ink-=cost;s.tail++;notification('チェーン末尾が '+s.tail+' になった');
+ }else if(which==='link'){
+  const cost=3+2*(s.chainLen-3);if(s.ink<cost||s.chainLen>=10000)return;s.ink-=cost;s.chainLen++;notification('チェーンが '+s.chainLen+' 項に伸びた');
+ }
+ if(s.chainLen>=5&&s.tail>=10&&!s.clearAt){s.clearAt=Date.now();notification('★ 最終目標達成！コンウェイの鎖を踏破。ここからは無限に伸ばせる。');}
+ dirty=true;paint(true);
+}
+function autoPurchase(){if(!s.auto||s.unlocked===0)return;
+ for(let k=0;k<s.unlocked;k++){
+  for(let j=0;j<3;j++)buy(k,'unit',j,'max');
+  buy(k,'up',0,'max');
+  // Click-upgrade is intentionally manual-only, saving currency for idle output.
+ }
+}
+function cleanState(obj){if(!obj||obj.v!==1||!Array.isArray(obj.tiers)||obj.tiers.length!==5)throw Error('対応していないセーブデータです');
+ const out=fresh();out.unlocked=Math.floor(Math.min(4,Math.max(0,finite(obj.unlocked))));out.active=Math.floor(Math.min(out.unlocked,Math.max(0,finite(obj.active))));
+ out.mode=['1','10','max'].includes(String(obj.mode))?String(obj.mode):'max';out.auto=!!obj.auto;
+ for(let k=0;k<5;k++){
+  const t=obj.tiers[k]||{};const a=out.tiers[k];
+  a.money=Math.min(1e12,Math.max(ZERO,finite(t.money,ZERO)));a.peak=Math.min(1e12,Math.max(a.money,finite(t.peak,ZERO)));
+  for(const field of ['owned','up']){if(Array.isArray(t[field]))a[field]=a[field].map((_,j)=>Math.floor(Math.min(field==='owned'?200000:100000,Math.max(0,finite(t[field][j])))));}
+ }
+ out.tower=Math.floor(Math.min(10000,Math.max(3,finite(obj.tower,3))));out.arrows=Math.floor(Math.min(10000,Math.max(3,finite(obj.arrows,3))));
+ out.chainLen=Math.floor(Math.min(10000,Math.max(4,finite(obj.chainLen,4))));out.tail=Math.floor(Math.min(1e9,Math.max(3,finite(obj.tail,3))));
+ out.clearAt=Math.max(0,finite(obj.clearAt));out.ink=Math.floor(Math.min(1e12,Math.max(0,finite(obj.ink))));out.weaves=Math.floor(Math.min(1e7,Math.max(0,finite(obj.weaves))));
+ out.clicks=Math.floor(Math.min(1e12,Math.max(0,finite(obj.clicks))));out.seconds=Math.min(1e10,Math.max(0,finite(obj.seconds)));out.last=Math.min(Date.now(),Math.max(0,finite(obj.last,Date.now())));
+ return out;
+}
+function serialize(){return JSON.stringify({...s,last:Date.now()});}
+function save(){try{s.last=Date.now();localStorage.setItem(KEY,serialize());dirty=false;lastSave=s.last;return true;}catch(e){notification('保存できません。セーブの書き出しを利用してください');return false;}}
+function load(){try{const raw=localStorage.getItem(KEY);if(!raw)return; s=cleanState(JSON.parse(raw));let sec=(Date.now()-s.last)/1000;if(sec>5){tick(Math.min(28800,sec));}s.last=Date.now();lastVisibilityWall=Date.now();}catch(e){console.warn('Save load:',e);s=fresh();}}
+function showMenu(open){$('dialogBack').hidden=!open;if(open){$('saveArea').value='';$('dialogStatus').textContent='';}}
+function handleClick(e){const b=e.target.closest('button');if(!b||b.disabled)return;
+ if(b.id==='clickBtn'){clickTap();paint();return;}
+ if(b.dataset.stage!==undefined){const k=Number(b.dataset.stage);if(k<=s.unlocked){s.active=k;fullRender();}return;}
+ if(b.dataset.mode!==undefined){s.mode=b.dataset.mode;syncModes();paint(true);return;}
+ if(b.dataset.kind!==undefined){const k=s.active,q=s.mode==='max'?'max':Number(s.mode);if(buy(k,b.dataset.kind,Number(b.dataset.item),q)){paint(true);}return;}
+ if(b.dataset.special){special(b.dataset.special);return;}
+ if(b.id==='ascendBtn'){unlock();return;}
+ if(b.id==='autoBtn'){s.auto=!s.auto;dirty=true;paint(true);notification('下位階層の自動購入 '+(s.auto?'ON':'OFF'));return;}
+ if(b.id==='notationCopyBtn'){
+  const string=completeNotation();
+  if(navigator.clipboard?.writeText){navigator.clipboard.writeText(string).then(()=>notification('記法をコピーした')).catch(()=>notification('コピーできませんでした。Safariの共有機能を試してください'));}
+  else notification('コピー機能を利用できません');
+  return;
+ }
+ if(b.id==='menuBtn'){showMenu(true);return;}
+ if(b.id==='closeBtn'){showMenu(false);return;}
+ if(b.id==='saveBtn'){$('dialogStatus').textContent=save()?'保存したよ':'保存に失敗しました';return;}
+ if(b.id==='copyBtn'){const val=serialize();$('saveArea').value=val;
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(val).then(()=>{$('dialogStatus').textContent='セーブをコピーしました';}).catch(()=>{$('dialogStatus').textContent='下の文字列を長押ししてコピーしてください';});
+  else $('dialogStatus').textContent='下の文字列を長押ししてコピーしてください';return;
+ }
+ if(b.id==='downloadBtn'){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([serialize()],{type:'application/json'}));a.href=url;a.download='numbers-conway-save.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);$('dialogStatus').textContent='セーブファイルの保存を開始しました';return;}
+ if(b.id==='loadBtn'){try{const ns=cleanState(JSON.parse($('saveArea').value.trim()));if(!confirm('現在のセーブに上書きして読み込みますか？'))return;s=ns;s.last=Date.now();save();fullRender();showMenu(false);notification('セーブデータを読み込みました');}catch(err){$('dialogStatus').textContent='読み込み失敗：'+err.message;}return;}
+ if(b.id==='resetBtn'){if(confirm('本当にすべての進行状況を消して最初からやり直しますか？')&&confirm('最終確認：新しいゲームを開始しますか？')){s=fresh();save();fullRender();showMenu(false);notification('新しく始めました');}return;}
+}
+document.addEventListener('click',handleClick);
+// iOS Safari: prevent unwanted double-tap and pinch zoom, but don't swallow taps.
+for(const name of ['gesturestart','gesturechange','gestureend'])document.addEventListener(name,e=>{if(e.cancelable)e.preventDefault();},{passive:false});
+document.addEventListener('touchmove',e=>{if(e.touches.length>1&&e.cancelable)e.preventDefault();},{passive:false});
+// Do not cancel touchend: cancelling it suppresses synthetic click events on iOS.
+load();fullRender();
+function frame(now){
+ const dt=Math.min(.25,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
+ if(!document.hidden){
+  tick(dt);
+  if(now-lastAuto>1600){autoPurchase();lastAuto=now;}
+  paint();if(dirty&&Date.now()-lastSave>7500)save();
+ }
+ requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+function settle(){if(dirty)save();}
+function resume(){
+ const now=Date.now(),sec=Math.max(0,(now-lastVisibilityWall)/1000);
+ lastVisibilityWall=now;
+ if(sec>1)tick(Math.min(28800,sec));
+ lastFrame=performance.now();paint(true);
+}
+window.addEventListener('pagehide',()=>{lastVisibilityWall=Date.now();settle();});
+window.addEventListener('pageshow',ev=>{if(ev.persisted)resume();});
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){lastVisibilityWall=Date.now();settle();}
+ else resume();
+});
 })();
-</script></body></html>
+</script>
+</body>
+</html>
