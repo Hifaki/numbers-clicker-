@@ -1,4 +1,4 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover"><title>NUMBERS — 階層クリッカー</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{font:15px system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 14px;background:#101114;color:#e8e8e8}h1{font-size:18px}h2{font-size:15px;margin:0 0 12px}section{border:1px solid #36383e;border-radius:8px;padding:16px;margin:12px 0}button{background:#292d35;color:#fff;border:1px solid #565b65;border-radius:5px;padding:10px;cursor:pointer}button:disabled{opacity:.4;cursor:default}button:hover:not(:disabled){background:#3a4050}.big{font-size:32px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.muted{color:#aaa;font-size:12px}.line{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 0}.line>div{min-width:0}.line button{flex-shrink:0}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stats div{padding:9px;background:#1b1e23;border-radius:5px}#click{width:100%;font-size:18px;margin-top:12px;padding:16px}.tabs{display:flex;gap:6px;flex-wrap:wrap}.tabs button.active{background:#525b70}#log{min-height:1em}small{color:#aaa}label{display:inline-flex;gap:6px;align-items:center}@media(max-width:480px){.line{align-items:flex-start;flex-direction:column}.line button{width:100%}}html,body,button{touch-action:manipulation}button{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>NUMBERS — 指数加速版</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{font:15px system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 14px;background:#101114;color:#e8e8e8}h1{font-size:18px}h2{font-size:15px;margin:0 0 12px}section{border:1px solid #36383e;border-radius:8px;padding:16px;margin:12px 0}button{background:#292d35;color:#fff;border:1px solid #565b65;border-radius:5px;padding:10px;cursor:pointer}button:disabled{opacity:.4;cursor:default}button:hover:not(:disabled){background:#3a4050}.big{font-size:32px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.muted{color:#aaa;font-size:12px}.line{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 0}.line>div{min-width:0}.line button{flex-shrink:0}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stats div{padding:9px;background:#1b1e23;border-radius:5px}#click{width:100%;font-size:18px;margin-top:12px;padding:16px}.tabs{display:flex;gap:6px;flex-wrap:wrap}.tabs button.active{background:#525b70}#log{min-height:1em}small{color:#aaa}label{display:inline-flex;gap:6px;align-items:center}@media(max-width:480px){.line{align-items:flex-start;flex-direction:column}.line button{width:100%}}html,body,button{touch-action:manipulation}button{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 html,body{touch-action:pan-x pan-y}button{touch-action:manipulation}button:active:not(:disabled){background:#586174}.milestone{color:#93dfab}.buy-controls{display:flex;gap:5px;flex-wrap:wrap;margin:12px 0}.buy-controls button.active{background:#525b70}.line small{display:block;margin-top:3px}.line{border-bottom:1px solid #282b30;padding-bottom:9px}.big{font-variant-numeric:tabular-nums}.hint{font-size:12px;color:#b9bdc6;line-height:1.6}
 /* タップ領域を安定させ、ダブルタップ拡大・選択を抑止 */
 html{touch-action:pan-y;overscroll-behavior:none;-webkit-text-size-adjust:100%}
@@ -7,139 +7,130 @@ button,nav,.buy-controls{touch-action:manipulation;-webkit-user-select:none;user
 button{min-height:44px;position:relative;-webkit-appearance:none;appearance:none}
 #click{min-height:72px;touch-action:none}
 @media(max-width:480px){body{margin:12px auto}.line{gap:7px}.line button{min-height:48px}}
+
+button{touch-action:manipulation}#click{touch-action:none}.line{contain:layout}.stats b{overflow-wrap:anywhere}.buy-controls button{flex:1} .detail{color:#adb7c5;font-size:12px;line-height:1.5} .big{font-size:clamp(23px,7vw,34px)}
 </style></head><body>
-<h1>NUMBERS / 階層クリッカー</h1><div class="muted">数字を積み上げる。10台ごとに生産量×10。</div>
-<section><div class="muted">数字</div><div id="points" class="big">0</div><div class="stats"><div>毎秒 <b id="pps">0</b></div><div>クリック <b id="clickPower">1</b></div><div>今回獲得 <b id="total">0</b></div><div>転生倍率 <b id="multi">1</b></div></div><button id="click">+1 クリック</button></section>
-<nav class="tabs"><button class="active" data-tab="production">生産</button><button data-tab="upgrades">強化</button><button data-tab="prestige">転生</button><button data-tab="achievements">実績</button><button data-tab="settings">設定</button></nav>
+<h1>NUMBERS / 指数加速版</h1><div class="muted">10・100・1,000・10,000の節目を重ね掛けして、指数を増やす。</div>
+<section><div class="muted">数字</div><div class="big" id="points">0</div>
+<div class="stats"><div>毎秒 <b id="pps">0</b></div><div>クリック <b id="clickPower">1</b></div><div>今回獲得 <b id="total">0</b></div><div>転生倍率 <b id="multi">1</b></div></div>
+<button id="click">+1 クリック</button></section>
+<nav class="tabs"><button data-tab="production" class="active">生産</button><button data-tab="upgrades">強化</button><button data-tab="prestige">転生</button><button data-tab="achievements">実績</button><button data-tab="settings">設定</button></nav>
 <section id="panel"></section><div id="log" class="muted" aria-live="polite"></div>
-<script>
-(()=>{'use strict';
-const KEY='numbers-clicker-v2'; // 以前と同じキー: セーブデータを引き継ぐ
+<script>(()=>{'use strict';
+const KEY='numbers-clicker-v2';
 const generators=[['指',15,1],['機械',120,7],['工場',1400,45],['都市',18000,280],['惑星',300000,1800],['恒星',6500000,12000],['銀河',150000000,85000],['宇宙',5000000000,650000]];
-const defaults=()=>({points:0,total:0,allTime:0,clicks:0,gens:Array(8).fill(0),clickLv:0,prodLv:0,prestige:0,crystals:0,crystalSpent:0,permLv:0,achievements:[],last:Date.now()});
-let s=defaults();
-try{let old=JSON.parse(localStorage.getItem(KEY));if(old&&typeof old==='object'){s={...s,...old};if(!Array.isArray(s.gens)||s.gens.length!==8)s.gens=Array(8).fill(0);s.gens=s.gens.map(n=>Math.max(0,Math.floor(Number(n)||0)));if(!Array.isArray(s.achievements))s.achievements=[]}}catch(e){}
-let tab='production',purchaseMode=1,liveRefresh=()=>{};
-const $=id=>document.getElementById(id);
-const fmt=n=>{if(!Number.isFinite(n))return '∞';if(n<0)return '-'+fmt(-n);if(n<1000)return (Math.floor(n*10)/10).toLocaleString('ja-JP');const unit=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];let i=Math.floor(Math.log10(Math.max(n,1))/3);return i<unit.length?(n/1000**i).toFixed(2)+unit[i]:n.toExponential(2)};
-// 結晶を永続強化に使っても転生倍率が下がらないよう累計獲得数で計算
-const multiplier=()=> (1+(s.crystals+s.crystalSpent)*.1)*(1+s.permLv*.25);
-const cp=()=> (1+s.clickLv)*(1+s.prodLv*.1)*multiplier();
-const milestone=n=>Math.floor(n/10);
-const genBoost=n=>10**milestone(n);
-const genProduction=i=>s.gens[i]*generators[i][2]*genBoost(s.gens[i]);
-const pps=()=>generators.reduce((sum,g,i)=>sum+genProduction(i),0)*(1+s.prodLv*.25)*multiplier();
-// 段階的な価格上昇：通常の購入ごとに17%、10台の境目でさらに約2倍。
-// さらに上の階層ほど節目の補正が少しずつ厳しくなる。
-const genCostAt=(i,n)=>{let tier=milestone(n);let log=Math.log(generators[i][1])+n*Math.log(1.17)+tier*Math.log(2)+tier*tier*Math.log(1.06);return log>709?Infinity:Math.ceil(Math.exp(log)-1e-9)};
-const genCost=i=>genCostAt(i,s.gens[i]);
-const clickCost=()=>Math.ceil(10*1.65**s.clickLv);
-const prodCost=()=>Math.ceil(100*2.1**s.prodLv);
-const permCost=()=>5*(s.permLv+1);
-// 永続強化のまとめ買い費用。価格はLv+1に比例して増える。
-const permBundleCost=k=>5*k*(2*s.permLv+k+1)/2;
-const permMax=()=>{
- if(!Number.isFinite(s.crystals)||s.crystals<permCost())return 0;
- // 二分探索：巨大な結晶数でも購入回数だけループしない。
- let lo=0,hi=1;
- while(hi<1e9&&permBundleCost(hi)<=s.crystals)hi*=2;
- hi=Math.min(hi,1e9);
- while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(permBundleCost(mid)<=s.crystals)lo=mid;else hi=mid-1}
- return lo;
-};
-const gain=()=>Math.max(0,Math.floor(Math.sqrt(s.total/100000)));
-const save=()=>{s.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}};
+// 数値は仮数と指数の組。小数指数ではなく整数指数を保持する。
+const Z={m:0,e:0},O={m:1,e:0};
+function N(v){if(v&&typeof v==='object'&&typeof v.m==='number'&&typeof v.e==='number')return norm(v.m,v.e);if(typeof v==='string'){const a=v.match(/^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:e([+-]?\d+))?$/i);if(a)return norm(Number(a[1]),Number(a[2]||0));return Z}return Number.isFinite(v)&&v>0?norm(v,0):Z}
+function norm(m,e){if(!(m>0)||!Number.isFinite(m)||!Number.isFinite(e))return Z;let shift=Math.floor(Math.log10(m));m/=10**shift;e+=shift;if(m>=10){m/=10;e++}if(m<1){m*=10;e--}return {m,e}}
+const logv=x=>x.m===0?-Infinity:Math.log10(x.m)+x.e;
+function pow10(ex){if(!Number.isFinite(ex))return Z;return norm(10**(ex-Math.floor(ex)),Math.floor(ex))}
+function add(a,b){if(!a.m)return b;if(!b.m)return a;if(a.e<b.e)[a,b]=[b,a];if(a.e-b.e>18)return a;return norm(a.m+b.m*10**(b.e-a.e),a.e)}
+function sub(a,b){if(!b.m)return a;if(cmp(a,b)<=0)return Z;if(a.e-b.e>16)return a;return norm(a.m-b.m*10**(b.e-a.e),a.e)}
+const mul=(a,b)=>!a.m||!b.m?Z:norm(a.m*b.m,a.e+b.e);
+const scale=(a,v)=>v>0&&a.m?norm(a.m*v,a.e):Z;
+function cmp(a,b){if(!a.m)return b.m?-1:0;if(!b.m)return 1;if(a.e!==b.e)return a.e>b.e?1:-1;return a.m>b.m?1:a.m<b.m?-1:0}
+const min=(a,b)=>cmp(a,b)<0?a:b;
+const floorSmall=x=>x.e>=14?x:x.e<0?Z:N(Math.floor(x.m*10**x.e));
+function fmt(x){x=N(x);if(!x.m)return '0';if(x.e<3){let v=x.m*10**x.e;return (v>=100?Math.floor(v):Math.floor(v*10)/10).toLocaleString('ja-JP')};const units=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];const group=Math.floor(x.e/3);const val=x.m*10**(x.e%3);if(group<units.length)return val.toFixed(2)+units[group];return x.m.toFixed(3)+'e+'+x.e.toLocaleString('en-US')}
+function compactInt(n){return Number.isFinite(n)?Math.floor(n).toLocaleString('ja-JP'):'∞'}
+const oldDefault=()=>({points:Z,total:Z,allTime:Z,clicks:0,gens:Array(8).fill(0),clickLv:0,prodLv:0,prestige:0,crystals:Z,crystalSpent:Z,permLv:0,achievements:[],last:Date.now()});
+let s=oldDefault();
+try{const v=JSON.parse(localStorage.getItem(KEY));if(v&&typeof v==='object'){
+ s={...s,...v};for(const k of ['points','total','allTime','crystals','crystalSpent'])s[k]=N(s[k]);
+ s.gens=Array.isArray(s.gens)?Array.from({length:8},(_,i)=>Math.max(0,Math.min(1e9,Math.floor(Number(s.gens[i])||0)))):Array(8).fill(0);
+ for(const k of ['clickLv','prodLv','permLv'])s[k]=Math.max(0,Math.min(1e9,Math.floor(Number(s[k])||0)));
+ if(!Array.isArray(s.achievements))s.achievements=[];
+}}catch(e){console.warn('セーブ復元エラー',e)}
+let tab='production',purchaseMode=1,upgradeMode='max',permMode='max',refreshPanel=()=>{};
+const $=id=>document.getElementById(id),T=n=>N(n),multPow=(base,count)=>pow10(Math.log10(base)*count);
+// レベルごとの独立したボーナス。10ごと10倍 / 100ごと100倍 / ...
+// 永続強化は10億までの桁節目を扱う。
+function tierBonus(n,maxTier){let exponent=0;for(let k=1,p=10;p<=maxTier;k++,p*=10)exponent+=k*Math.floor(n/p);return pow10(exponent)}
+function milestoneDetail(n,maxTier){let result=[];for(let p=10;p<=maxTier;p*=10)result.push(compactInt(p)+'毎 ×'+compactInt(p));return result.join(' / ')}
+const globalGenBonus=()=>s.gens.reduce((m,n)=>mul(m,mul(multPow(100,Math.floor(n/100)),mul(multPow(1000,Math.floor(n/1000)),multPow(10000,Math.floor(n/10000))))),O);
+const localGenBonus=n=>multPow(10,Math.floor(n/10));
+const crystalAll=()=>add(s.crystals,s.crystalSpent);
+const prestigeBase=()=>add(O,scale(crystalAll(),.1));
+// 永続強化の従来の +25%/Lv を維持し、追加で10〜10億の各節目を乗算。
+const permBonus=()=>mul(add(O,scale(T(s.permLv),.25)),tierBonus(s.permLv,1e9));
+const multiplier=()=>mul(prestigeBase(),permBonus());
+const upgradeBonus=n=>tierBonus(n,1000000000);
+const cp=()=>mul(mul(T(s.clickLv+1),add(O,scale(T(s.prodLv),.1))),mul(mul(upgradeBonus(s.clickLv),upgradeBonus(s.prodLv)),multiplier()));
+const genProduction=i=>mul(scale(T(generators[i][2]),s.gens[i]),localGenBonus(s.gens[i]));
+const pps=()=>mul(s.gens.reduce((sum,_,i)=>add(sum,genProduction(i)),Z),mul(mul(add(O,scale(T(s.prodLv),.25)),upgradeBonus(s.prodLv)),mul(multiplier(),globalGenBonus())));
+// 従来の二次式価格を廃止。10台目ごとの変動と、100/1000/10000台の節目に追加費用。
+function genCostAt(i,n){const g=generators[i];const exponent=Math.log10(g[1])+Math.log10(1.17)*n+Math.log10(1.6)*Math.floor(n/10)+Math.log10(2)*Math.floor(n/100)+Math.log10(3)*Math.floor(n/1000)+Math.log10(5)*Math.floor(n/10000);return pow10(exponent)}
+function clickCostAt(n){return pow10(1+Math.log10(1.65)*n+Math.log10(1.5)*Math.floor(n/10)+Math.log10(2)*Math.floor(n/100))}
+function prodCostAt(n){return pow10(2+Math.log10(2.1)*n+Math.log10(1.5)*Math.floor(n/10)+Math.log10(2)*Math.floor(n/100))}
+// 結晶コスト：永続強化1レベル = 5×(レベル+1) 。大きいレベルでもまとめ買い可能。
+function permBundleCost(q){return q<=0?Z:mul(T(2*s.permLv+q+1),scale(T(q),2.5))}
+// 一括コストの末尾160項を高精度で合計。価格は常に少なくとも1.17倍で
+// 160項より前の寄与は1e-10以下。厳密比較用に安全マージンを追加。
+function geometricBundle(costAt,start,q){if(q<=0)return Z;let result=Z;const from=Math.max(0,q-160);for(let j=from;j<q;j++)result=add(result,costAt(start+j));return scale(result,1+1e-10)}
+const genBundle=(i,q)=>geometricBundle(n=>genCostAt(i,n),s.gens[i],q);
+const upgradeBundle=(type,q)=>geometricBundle(n=>type==='click'?clickCostAt(n):prodCostAt(n),type==='click'?s.clickLv:s.prodLv,q);
+function maxAffordable(costFor,available,cap=1e9){if(cap<1||cmp(costFor(1),available)>0)return 0;if(cap===1)return 1;let lo=1,hi=2;while(hi<cap&&cmp(costFor(hi),available)<=0){lo=hi;hi=Math.min(cap,hi*2)}if(hi===cap&&cmp(costFor(hi),available)<=0)return cap;while(lo+1<hi){const mid=Math.floor((lo+hi)/2);if(cmp(costFor(mid),available)<=0)lo=mid;else hi=mid}return lo}
+// 高コストの最大購入判定は購入時のみ。画面更新では先頭単価のみ計算する。
+const crystalsGain=()=>{const x=logv(s.total);if(x<5)return Z;const g=pow10((x-5)/2);return g.e<14?floorSmall(g):g};
+const save=()=>{s.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(s))}catch(e){msg('保存に失敗しました')}};
 const msg=t=>$('log').textContent=t;
-function award(n){if(!s.achievements.includes(n)){s.achievements.push(n);msg('実績解除：'+n)}}
-function check(){if(s.allTime>=100)award('100獲得');if(s.allTime>=1e5)award('10万獲得');if(s.allTime>=1e9)award('10億獲得');if(s.clicks>=100)award('100クリック');if(s.gens.reduce((a,b)=>a+b,0)>=100)award('設備100台');if(s.prestige>=1)award('初転生');if(s.crystals+s.crystalSpent>=100)award('結晶100個')}
-function earn(n){if(!(n>0))return;s.points+=n;s.total+=n;s.allTime+=n;if(s.achievements.length<7)check()}
-function spend(n){if(!Number.isFinite(n)||s.points+Math.max(1e-8,n*1e-12)<n)return false;s.points=Math.max(0,s.points-n);return true}
-function el(tag,txt,cls){const x=document.createElement(tag);if(txt!==undefined)x.textContent=txt;if(cls)x.className=cls;return x}
-function row(parent,title,description,label,enabled,fn){const r=el('div',undefined,'line'),d=el('div'),heading=el('div',title),sub=el('small',description),btn=el('button',label);d.append(heading,sub);r.append(d,btn);btn.disabled=!enabled;btn.addEventListener('click',()=>{if(btn.disabled)return;fn();render();save()});parent.append(r);return {heading,sub,btn}}
-function bundle(i,requested){let n=s.gens[i],cost=0,qty=0;const limit=requested===Infinity?1000:requested;while(qty<limit){let next=genCostAt(i,n+qty);if(!Number.isFinite(next)||cost+next>s.points+Math.max(1e-8,s.points*1e-12))break;cost+=next;qty++}return {qty,cost}}
-// 画面構造は購入・タブ切替時のみ再生成。毎フレームのDOM破棄を回避する。
-function renderPanel(){const p=$('panel');p.replaceChildren();liveRefresh=()=>{};
+function award(name){if(!s.achievements.includes(name)){s.achievements.push(name);msg('実績解除：'+name)}}
+function check(){if(cmp(s.allTime,T(100))>=0)award('100獲得');if(cmp(s.allTime,T(1e5))>=0)award('10万獲得');if(cmp(s.allTime,T(1e9))>=0)award('10億獲得');if(s.clicks>=100)award('100クリック');if(s.gens.reduce((a,b)=>a+b,0)>=100)award('設備100台');if(s.prestige)award('初転生');if(cmp(crystalAll(),T(100))>=0)award('結晶100個')}
+function earn(x){if(!x.m)return;s.points=add(s.points,x);s.total=add(s.total,x);s.allTime=add(s.allTime,x);if(s.achievements.length<7)check()}
+function spend(x){if(cmp(s.points,x)<0)return false;s.points=sub(s.points,x);return true}
+function el(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e}
+function row(parent,title,desc,buttonText,fn){const r=el('div',undefined,'line'),lhs=el('div'),head=el('div',title),detail=el('small',desc),btn=el('button',buttonText);lhs.append(head,detail);r.append(lhs,btn);btn.onclick=()=>{if(btn.disabled)return;fn();save();render()};parent.append(r);return {head,detail,btn}}
+function modeBar(parent,modes,current,change){const bar=el('div',undefined,'buy-controls');for(const [name,value] of modes){const b=el('button',name);b.classList.toggle('active',current===value);b.onclick=()=>{change(value);renderPanel()};bar.append(b)}parent.append(bar)}
+function renderPanel(){const p=$('panel');p.replaceChildren();refreshPanel=()=>{};
 if(tab==='production'){
  p.append(el('h2','生産設備'));
- const controls=el('div',undefined,'buy-controls');[1,10,Infinity].forEach(mode=>{const b=el('button',mode===Infinity?'最大':'×'+mode);b.classList.toggle('active',purchaseMode===mode);b.addEventListener('click',()=>{purchaseMode=mode;renderPanel()});controls.append(b)});p.append(controls);
- p.append(el('p','設備は10台ごとに生産×10。10台の節目で価格上昇率も変化します。','hint'));
- const lines=generators.map((g,i)=>{
-  const n=s.gens[i];const r=row(p,g[0]+' × '+n,'','購入',false,()=>{
-   const b=bundle(i,purchaseMode);if(b.qty>0&&spend(b.cost)){const old=s.gens[i];s.gens[i]+=b.qty;check();if(milestone(s.gens[i])>milestone(old))msg(g[0]+'：生産量10倍の節目達成！')}
-  });return r;
- });
- liveRefresh=()=>generators.forEach((g,i)=>{const n=s.gens[i],b=bundle(i,purchaseMode),next=10-n%10,r=lines[i];
-  r.heading.textContent=g[0]+' × '+n;
-  r.sub.textContent='合計 '+fmt(genProduction(i)*(1+s.prodLv*.25)*multiplier())+'/秒 ・ 倍率 ×'+fmt(genBoost(n))+' ・ 次の10倍まで '+next+'台 ・ 次の単価 '+fmt(genCost(i));
-  r.btn.textContent='購入 '+(b.qty?b.qty+'台 / '+fmt(b.cost):fmt(genCost(i)));
-  r.btn.disabled=b.qty===0;
+ modeBar(p,[['×1',1],['×10',10],['最大','max']],purchaseMode,v=>purchaseMode=v);
+ p.append(el('p','各設備10台ごとにその設備×10。さらに各設備100台ごとに全生産×100、1,000台ごとに×1,000、10,000台ごとに×10,000（すべて重複適用）。','hint'));
+ const lines=generators.map((g,i)=>row(p,g[0]+' × '+compactInt(s.gens[i]),'','購入',()=>{
+  let q=purchaseMode==='max'?maxAffordable(k=>genBundle(i,k),s.points,1e9-s.gens[i]):Math.min(purchaseMode,maxAffordable(k=>genBundle(i,k),s.points,Math.min(purchaseMode,1e9-s.gens[i])));
+  if(q>0){const price=genBundle(i,q);if(spend(price)){s.gens[i]+=q;msg(g[0]+' を '+compactInt(q)+' 台購入')}}
+ }));
+ refreshPanel=()=>generators.forEach((g,i)=>{let n=s.gens[i],r=lines[i],price=genCostAt(i,n);r.head.textContent=g[0]+' × '+compactInt(n);
+  r.detail.textContent='基礎生産 '+fmt(genProduction(i))+'/秒 ・ 10台倍率 ×'+fmt(localGenBonus(n))+' ・ 次の10台まで '+(10-n%10)+'台 ・ 次の単価 '+fmt(price);
+  r.btn.textContent='購入 '+(purchaseMode==='max'?'最大':('×'+purchaseMode))+'（'+fmt(price)+'〜）';r.btn.disabled=cmp(s.points,price)<0||n>=1e9;
  });
 }else if(tab==='upgrades'){
- p.append(el('h2','通常強化'));
- const a=row(p,'クリック強化 Lv.'+s.clickLv,'クリック基礎値 +1','購入',false,()=>{const c=clickCost();if(spend(c))s.clickLv++});
- const b=row(p,'全体強化 Lv.'+s.prodLv,'設備生産 +25%/Lv ・ クリック +10%/Lv','購入',false,()=>{const c=prodCost();if(spend(c))s.prodLv++});
- liveRefresh=()=>{a.heading.textContent='クリック強化 Lv.'+s.clickLv;a.btn.textContent='購入 '+fmt(clickCost());a.btn.disabled=s.points<clickCost();b.heading.textContent='全体強化 Lv.'+s.prodLv;b.btn.textContent='購入 '+fmt(prodCost());b.btn.disabled=s.points<prodCost()};
+ p.append(el('h2','通常強化'));modeBar(p,[['×1',1],['×10',10],['最大','max']],upgradeMode,v=>upgradeMode=v);
+ p.append(el('p','強化レベル10ごと×10、100ごと×100、1,000ごと×1,000……10億まで重複乗算。クリック強化はクリック、全体強化は設備生産とクリックに適用。','hint'));
+ const lines=[['クリック強化','clickLv',clickCostAt],['全体強化','prodLv',prodCostAt]].map(([name,key,costAt])=>row(p,name,'','購入',()=>{
+  const bundle=k=>upgradeBundle(key==='clickLv'?'click':'prod',k),q=upgradeMode==='max'?maxAffordable(bundle,s.points,1e9-s[key]):maxAffordable(bundle,s.points,Math.min(upgradeMode,1e9-s[key]));
+  if(q>0&&spend(bundle(q))){s[key]+=q;msg(name+' +'+compactInt(q)+' Lv')}}));
+ refreshPanel=()=>lines.forEach((r,i)=>{const key=i===0?'clickLv':'prodLv',type=i===0?'click':'prod',costAt=i===0?clickCostAt:prodCostAt,n=s[key],c=costAt(n);r.head.textContent=(i===0?'クリック強化':'全体強化')+' Lv.'+compactInt(n);r.detail.textContent='節目倍率 ×'+fmt(upgradeBonus(n))+' / 次の10区切りまで '+(10-n%10)+' Lv / 次の費用 '+fmt(c);r.btn.textContent='購入 '+(upgradeMode==='max'?'最大':'×'+upgradeMode);r.btn.disabled=cmp(s.points,c)<0||n>=1e9});
 }else if(tab==='prestige'){
- p.append(el('h2','転生'));
- const total=el('p'),gainLine=el('p'),crystals=el('p');p.append(total,gainLine,crystals);
- p.append(el('p','累計獲得結晶1個につきクリック・設備生産 +10%。結晶消費後も倍率は維持。','hint'));
- const a=row(p,'転生する','数字・設備・通常強化をリセット。結晶と永続強化は残る。','転生',false,()=>{const n=gain();if(n<1||!confirm('転生しますか？ 通常進行はリセットされます。'))return;s.prestige++;s.crystals+=n;s.points=0;s.total=0;s.gens=Array(8).fill(0);s.clickLv=0;s.prodLv=0;check()});
- const mode=el('div',undefined,'buy-controls');let permMode='max';
- const modeBtns=[['1レベル',1],['最大', 'max']].map(([label,value])=>{
-  const btn=el('button',label);btn.classList.toggle('active',permMode===value);
-  btn.addEventListener('click',()=>{permMode=value;mode.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===btn));liveRefresh()});mode.append(btn);return btn;
+ p.append(el('h2','転生'));const display=el('p'),gain=el('p'),owned=el('p');p.append(display,gain,owned);
+ p.append(el('p','累計獲得結晶1個につき+10%。永続強化はLvあたり+25%に加えて、10・100・1,000……10億レベルの節目で倍率が重複して増加。','hint'));
+ const rebirth=row(p,'転生する','数字・設備・通常強化をリセット。結晶と永続強化は残る。','転生',()=>{const g=crystalsGain();if(!g.m||!confirm('転生しますか？通常進行はリセットされます。'))return;s.prestige++;s.crystals=add(s.crystals,g);s.points=Z;s.total=Z;s.gens=Array(8).fill(0);s.clickLv=0;s.prodLv=0;check()});
+ modeBar(p,[['×1',1],['×10',10],['最大','max']],permMode,v=>permMode=v);
+ const perm=row(p,'永続強化 Lv.'+compactInt(s.permLv),'','結晶で購入',()=>{
+  const q=permMode==='max'?maxAffordable(permBundleCost,s.crystals,1e9-s.permLv):maxAffordable(permBundleCost,s.crystals,Math.min(permMode,1e9-s.permLv));if(!q)return;
+  const cost=permBundleCost(q);if(cmp(s.crystals,cost)<0)return;s.crystals=sub(s.crystals,cost);s.crystalSpent=add(s.crystalSpent,cost);s.permLv+=q;msg('永続強化 +'+compactInt(q)+' Lv');
  });
- p.append(el('p','永続強化の購入数','hint'),mode);
- const b=row(p,'永続強化 Lv.'+s.permLv,'1レベルにつき全生産・クリック +25%。結晶を消費。','購入',false,()=>{
-  const qty=permMode==='max'?permMax():(s.crystals>=permCost()?1:0);
-  if(qty<1)return;
-  const cost=permBundleCost(qty);
-  s.crystals=Math.max(0,s.crystals-cost);s.crystalSpent+=cost;s.permLv+=qty;
-  msg('永続強化を '+qty+' レベル購入しました');
- });
- liveRefresh=()=>{total.textContent='今回の累計獲得：'+fmt(s.total);gainLine.textContent='転生で獲得できる結晶：'+fmt(gain())+'個';crystals.textContent='所持結晶：'+fmt(s.crystals)+'個 / 累計獲得：'+fmt(s.crystals+s.crystalSpent)+'個';a.btn.textContent='転生（+'+fmt(gain())+'）';a.btn.disabled=gain()<1;
-  const qty=permMode==='max'?permMax():(s.crystals>=permCost()?1:0);
-  const price=qty?permBundleCost(qty):permCost();
-  b.heading.textContent='永続強化 Lv.'+s.permLv;
-  b.sub.textContent='1レベルにつき全生産・クリック +25%。次の1レベル：結晶 '+fmt(permCost());
-  b.btn.textContent=qty?'+'+qty+' Lv / 結晶 '+fmt(price):'結晶 '+fmt(permCost());b.btn.disabled=qty===0;
- };
+ refreshPanel=()=>{display.textContent='今回の累計獲得 '+fmt(s.total);gain.textContent='転生で獲得 '+fmt(crystalsGain())+' 結晶';owned.textContent='所持結晶 '+fmt(s.crystals)+' / 累計 '+fmt(crystalAll());rebirth.btn.disabled=!crystalsGain().m;rebirth.btn.textContent='転生（+'+fmt(crystalsGain())+'）';const c=permBundleCost(1);perm.head.textContent='永続強化 Lv.'+compactInt(s.permLv);perm.detail.textContent='現在の節目倍率 ×'+fmt(tierBonus(s.permLv,1e9))+' / 次の単価 結晶'+fmt(c);perm.btn.textContent='購入 '+(permMode==='max'?'最大':'×'+permMode);perm.btn.disabled=cmp(s.crystals,c)<0||s.permLv>=1e9};
 }else if(tab==='achievements'){
- p.append(el('h2','実績 '+s.achievements.length+'/7'));['100獲得','10万獲得','10億獲得','100クリック','設備100台','初転生','結晶100個'].forEach(n=>p.append(el('div',(s.achievements.includes(n)?'✓ ':'□ ')+n)));
+ p.append(el('h2','実績 '+s.achievements.length+'/7'));for(const a of ['100獲得','10万獲得','10億獲得','100クリック','設備100台','初転生','結晶100個'])p.append(el('div',(s.achievements.includes(a)?'✓ ':'□ ')+a));
 }else{
- p.append(el('h2','設定'));p.append(el('p','自動保存：約5秒ごと / 離席中の生産：最大8時間'));
- row(p,'手動保存','現在の状態を保存','保存',true,()=>{save();msg('保存しました')});
- row(p,'最初からやり直す','保存データを削除','リセット',true,()=>{if(confirm('本当にすべての進行を削除しますか？')){s=defaults();save();msg('リセットしました')}})
+ p.append(el('h2','設定'));p.append(el('p','自動セーブ約5秒 / オフライン生産最大8時間 / セーブキーは旧版と共通'));
+ row(p,'セーブデータをコピー','JSONとしてコピーして別途保存できます','コピー',()=>{const data=JSON.stringify(s);if(navigator.clipboard?.writeText)navigator.clipboard.writeText(data).then(()=>msg('コピーしました')).catch(()=>msg('コピーできませんでした'));else prompt('データをコピーしてください',data)});
+ row(p,'セーブデータを読み込む','設定前に必ずバックアップしてください','読み込む',()=>{const v=prompt('以前コピーしたJSONを貼り付けてください');if(!v)return;try{const data=JSON.parse(v);if(!data||!Array.isArray(data.gens))throw Error('形式');s={...oldDefault(),...data};for(const k of ['points','total','allTime','crystals','crystalSpent'])s[k]=N(s[k]);save();render()}catch(e){msg('読み込み形式が正しくありません')}});
+ row(p,'手動保存','進行状況を保存','保存',()=>{save();msg('保存しました')});
+ row(p,'全リセット','進行状況を削除します','削除',()=>{if(confirm('本当に全削除しますか？')){s=oldDefault();save();msg('リセットしました')}});
 }
-liveRefresh();
-}
-function renderNumbers(){ $('points').textContent=fmt(s.points);$('pps').textContent=fmt(pps());$('clickPower').textContent=fmt(cp());$('total').textContent=fmt(s.total);$('multi').textContent=fmt(multiplier())+'倍';$('click').textContent='+'+fmt(cp())+' クリック'}
+refreshPanel()}
+function renderNumbers(){const vals=[['points',fmt(s.points)],['pps',fmt(pps())],['clickPower',fmt(cp())],['total',fmt(s.total)],['multi',fmt(multiplier())+'倍'],['click','+'+fmt(cp())+' クリック']];for(const [id,value] of vals){const e=$(id);if(e.textContent!==value)e.textContent=value}}
 function render(){renderNumbers();renderPanel()}
-$('click').addEventListener('click',()=>{s.clicks++;earn(cp());renderNumbers();},{passive:true});
-document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));render()});
-// iOS Safari: ピンチ拡大・ダブルタップ拡大を抑止する。
-for(const type of ['gesturestart','gesturechange','gestureend']){
- document.addEventListener(type,e=>e.preventDefault(),{passive:false});
-}
-// 複数指のタッチだけを禁止。1本指のタップ・スクロールは阻害しない。
+$('click').addEventListener('click',()=>{s.clicks++;earn(cp());renderNumbers()});
+for(const b of document.querySelectorAll('[data-tab]'))b.addEventListener('click',()=>{tab=b.dataset.tab;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));render()});
+for(const type of ['gesturestart','gesturechange','gestureend'])document.addEventListener(type,e=>e.preventDefault(),{passive:false});
 document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
-// ボタン上の連続タップはtouch-actionで制御し、clickイベントは奪わない。
-
-const offline=Math.min(Math.max(0,(Date.now()-(Number(s.last)||Date.now()))/1000),28800);
-if(offline>10){const earned=pps()*offline;earn(earned);msg('離席中の獲得：'+fmt(earned))}
-render();let last=performance.now(),panelTime=0,numberTime=0;
-function frame(now){
- const dt=Math.min(Math.max((now-last)/1000,0),2);last=now;
- if(!document.hidden){
-  earn(pps()*dt);
-  numberTime+=dt;panelTime+=dt;
-  // 数値は最大30fpsで更新。60fps連続DOM更新より端末への負荷が小さい。
-  if(numberTime>=1/30){renderNumbers();numberTime=0}
-  // ボタンを破棄せず、購入可能状態と金額だけを毎秒5回更新。
-  if(panelTime>=.2){liveRefresh();panelTime=0}
- }
- requestAnimationFrame(frame);
-}requestAnimationFrame(frame);
+const offline=Math.min(Math.max(0,(Date.now()-(Number(s.last)||Date.now()))/1000),28800);if(offline>10){const amount=scale(pps(),offline);earn(amount);msg('離席中の獲得 '+fmt(amount))}
+render();let previous=performance.now(),numTime=0,panelTime=0;
+function frame(now){const dt=Math.min(Math.max((now-previous)/1000,0),2);previous=now;if(!document.hidden){earn(scale(pps(),dt));numTime+=dt;panelTime+=dt;if(numTime>=1/30){renderNumbers();numTime=0}if(panelTime>=.4){refreshPanel();panelTime=0}}requestAnimationFrame(frame)}requestAnimationFrame(frame);
 setInterval(save,5000);document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});window.addEventListener('pagehide',save);
 })();
 </script></body></html>
