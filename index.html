@@ -36,6 +36,17 @@ const genCost=i=>genCostAt(i,s.gens[i]);
 const clickCost=()=>Math.ceil(10*1.65**s.clickLv);
 const prodCost=()=>Math.ceil(100*2.1**s.prodLv);
 const permCost=()=>5*(s.permLv+1);
+// 永続強化のまとめ買い費用。価格はLv+1に比例して増える。
+const permBundleCost=k=>5*k*(2*s.permLv+k+1)/2;
+const permMax=()=>{
+ if(!Number.isFinite(s.crystals)||s.crystals<permCost())return 0;
+ // 二分探索：巨大な結晶数でも購入回数だけループしない。
+ let lo=0,hi=1;
+ while(hi<1e9&&permBundleCost(hi)<=s.crystals)hi*=2;
+ hi=Math.min(hi,1e9);
+ while(lo<hi){const mid=Math.ceil((lo+hi)/2);if(permBundleCost(mid)<=s.crystals)lo=mid;else hi=mid-1}
+ return lo;
+};
 const gain=()=>Math.max(0,Math.floor(Math.sqrt(s.total/100000)));
 const save=()=>{s.last=Date.now();try{localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}};
 const msg=t=>$('log').textContent=t;
@@ -73,8 +84,26 @@ if(tab==='production'){
  const total=el('p'),gainLine=el('p'),crystals=el('p');p.append(total,gainLine,crystals);
  p.append(el('p','累計獲得結晶1個につきクリック・設備生産 +10%。結晶消費後も倍率は維持。','hint'));
  const a=row(p,'転生する','数字・設備・通常強化をリセット。結晶と永続強化は残る。','転生',false,()=>{const n=gain();if(n<1||!confirm('転生しますか？ 通常進行はリセットされます。'))return;s.prestige++;s.crystals+=n;s.points=0;s.total=0;s.gens=Array(8).fill(0);s.clickLv=0;s.prodLv=0;check()});
- const b=row(p,'永続強化 Lv.'+s.permLv,'1レベルにつき全生産・クリック +25%。結晶を消費。','購入',false,()=>{const c=permCost();if(s.crystals>=c){s.crystals-=c;s.crystalSpent+=c;s.permLv++}});
- liveRefresh=()=>{total.textContent='今回の累計獲得：'+fmt(s.total);gainLine.textContent='転生で獲得できる結晶：'+fmt(gain())+'個';crystals.textContent='所持結晶：'+fmt(s.crystals)+'個 / 累計獲得：'+fmt(s.crystals+s.crystalSpent)+'個';a.btn.textContent='転生（+'+fmt(gain())+'）';a.btn.disabled=gain()<1;b.heading.textContent='永続強化 Lv.'+s.permLv;b.btn.textContent='結晶 '+permCost();b.btn.disabled=s.crystals<permCost()};
+ const mode=el('div',undefined,'buy-controls');let permMode='max';
+ const modeBtns=[['1レベル',1],['最大', 'max']].map(([label,value])=>{
+  const btn=el('button',label);btn.classList.toggle('active',permMode===value);
+  btn.addEventListener('click',()=>{permMode=value;mode.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===btn));liveRefresh()});mode.append(btn);return btn;
+ });
+ p.append(el('p','永続強化の購入数','hint'),mode);
+ const b=row(p,'永続強化 Lv.'+s.permLv,'1レベルにつき全生産・クリック +25%。結晶を消費。','購入',false,()=>{
+  const qty=permMode==='max'?permMax():(s.crystals>=permCost()?1:0);
+  if(qty<1)return;
+  const cost=permBundleCost(qty);
+  s.crystals=Math.max(0,s.crystals-cost);s.crystalSpent+=cost;s.permLv+=qty;
+  msg('永続強化を '+qty+' レベル購入しました');
+ });
+ liveRefresh=()=>{total.textContent='今回の累計獲得：'+fmt(s.total);gainLine.textContent='転生で獲得できる結晶：'+fmt(gain())+'個';crystals.textContent='所持結晶：'+fmt(s.crystals)+'個 / 累計獲得：'+fmt(s.crystals+s.crystalSpent)+'個';a.btn.textContent='転生（+'+fmt(gain())+'）';a.btn.disabled=gain()<1;
+  const qty=permMode==='max'?permMax():(s.crystals>=permCost()?1:0);
+  const price=qty?permBundleCost(qty):permCost();
+  b.heading.textContent='永続強化 Lv.'+s.permLv;
+  b.sub.textContent='1レベルにつき全生産・クリック +25%。次の1レベル：結晶 '+fmt(permCost());
+  b.btn.textContent=qty?'+'+qty+' Lv / 結晶 '+fmt(price):'結晶 '+fmt(permCost());b.btn.disabled=qty===0;
+ };
 }else if(tab==='achievements'){
  p.append(el('h2','実績 '+s.achievements.length+'/7'));['100獲得','10万獲得','10億獲得','100クリック','設備100台','初転生','結晶100個'].forEach(n=>p.append(el('div',(s.achievements.includes(n)?'✓ ':'□ ')+n)));
 }else{
